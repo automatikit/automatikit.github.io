@@ -1,0 +1,680 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Automatik IT — Automated RFQ quoting for aviation parts</title>
+<link rel="canonical" href="https://automatikit.com/rfq-demo/">
+<meta name="robots" content="noindex,nofollow">
+<meta name="description" content="Automated RFQ quoting for aviation parts distributors: an inbound RFQ is cross-referenced, priced and answered with a finished quote in about a minute, on your own catalogue and pricing.">
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="../favicon-16x16.png">
+<link rel="manifest" href="../site.webmanifest">
+<meta name="theme-color" content="#2E80B8">
+<style>
+  :root{
+    --bg:#ffffff; --fg:#15181d; --muted:#5b6472; --line:#e3e7ec;
+    --accent:#2E80B8; --card:#f7f9fa; --code-bg:#ffffff; --code-line:#c9d2da;
+    --hl:rgb(253,65,164); --mark:rgb(96,165,250); --maxw:64rem; --mockw:42rem;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#101317; --fg:#e9edf2; --muted:#9aa5b3; --line:#242a32;
+           --accent:#6db5da; --card:#171b21; --code-bg:#0a0d11; --code-line:#33404d; }
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--fg); overflow-x:clip;
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 1.5rem}
+  header{border-bottom:1px solid var(--line)}
+  header .wrap{display:flex; align-items:center; justify-content:space-between; gap:1rem;
+               flex-wrap:wrap; padding-top:1.5rem; padding-bottom:1.5rem}
+  /* same rendered size as the start page: 245px wide, about 53px tall at 4.6:1 */
+  .logo{display:block; width:min(245px,62vw); height:auto}
+  @media (prefers-color-scheme: dark){
+    /* the logo artwork is dark grey and brand blue on transparent; invert lightness but
+       keep the hue so the blue stays blue on the dark background */
+    .logo{filter:invert(1) hue-rotate(180deg)}
+  }
+  .tag{color:var(--muted); font-size:.9rem}
+  /* one sentence per line. rather than shrinking the type to fit the 61rem column, the
+     headline breaks out to the full viewport so it can go bigger instead. gutters match
+     .wrap at 1.5rem, and those absorb the scrollbar that 100vw does not account for.
+     deliberately not white-space:nowrap: on a phone this wraps rather than overflowing */
+  h1{
+    font-size:clamp(1.75rem,4.2vw,3.4rem); line-height:1.2; letter-spacing:-.025em;
+    margin:3.5rem 0 1rem;
+    --h1w:min(100vw - 3rem, 80rem);
+    width:var(--h1w);
+    margin-left:calc(50% - var(--h1w)/2);
+  }
+  h1 .h1-a, h1 .h1-b{display:block}
+  /* right alignment only where the line is long enough for the offset to read as
+     deliberate. stacked narrow, it just looks like a stray ragged line */
+  @media(min-width:52rem){
+    h1 .h1-b{text-align:right}
+  }
+  @media(min-width:52rem){
+    h1{grid-template-columns:1fr 1fr; gap:2.5rem; align-items:end}
+    /* right alignment only once there is a second column to align against */
+    h1 .h1-b{text-align:right}
+  }
+  /* brush-pen underline on the payoff half of the headline: one quick sweep, no retrace.
+     it is a filled shape rather than a stroked line, because the pressure is what sells
+     the brush: full weight on the entry, where the nib lands, thinning the whole way
+     across and lifting off to a point at the tail. it is bowed rather than straight: the
+     stroke arches up over the middle and settles back down into the tail, the arc a
+     hand makes pivoting from the wrist.
+     an inline SVG rather than text-decoration, since a decoration line or a border can
+     only ever be a constant-width straight rule. preserveAspectRatio:none stretches it
+     to whatever width the phrase ends up at, so the stroke scales with the fluid
+     headline instead of tiling, and box-decoration-break:clone redraws it per fragment
+     if the phrase wraps. the fill is #fd41a4 spelled out because a data URI cannot read
+     var(--hl); same value, and --hl is not overridden in dark mode, so one literal
+     covers both schemes */
+  .hl{
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 18' preserveAspectRatio='none'%3E%3Cpath fill='%23fd41a4' d='M8 8.4C90 4.6 240 3.4 396 5.6 240 6.4 90 9.2 8 15 2 14.4 2 9.2 8 8.4Z'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:0 100%; background-size:100% .32em;
+    padding-bottom:.18em;
+    -webkit-box-decoration-break:clone; box-decoration-break:clone;
+  }
+  .lede{font-size:1.15rem; color:var(--muted); max-width:60ch; margin:0 0 1rem}
+  .hero-note{color:var(--muted); font-size:.95rem; max-width:60ch; margin:0 0 3.5rem}
+  h2{
+    font-size:clamp(1.35rem,3vw,1.75rem); line-height:1.25; letter-spacing:-.015em;
+    color:var(--fg); font-weight:650; margin:0 0 .75rem;
+  }
+  /* position + an explicit z-index makes each section its own stacking context, so the
+     watermark can sit at z-index:-1: behind the section content, but still in front of
+     the page background rather than escaping to the root and disappearing under it */
+  section{position:relative; z-index:0; padding:2.75rem 0; border-top:1px solid var(--line)}
+  /* the icon that used to sit inside each heading, blown up as a faint watermark */
+  .section-mark{
+    position:absolute; top:1.6rem; right:0; z-index:-1;
+    width:clamp(6rem,13vw,10rem); height:clamp(6rem,13vw,10rem);
+    fill:currentColor; color:var(--accent); opacity:.07; pointer-events:none;
+  }
+  @media (prefers-color-scheme: dark){ .section-mark{opacity:.11} }
+  /* Contact's photo panel is opaque, so at z-index:-1 its watermark was hidden behind
+     it entirely. lift it above the image, still under the copy, which sits at the same
+     z-index but later in the DOM. white rather than accent, since it now reads against
+     the photo instead of the page, and the higher specificity holds in dark mode too */
+  .contact .section-mark{
+    top:50%; bottom:auto; right:1.75rem; transform:translateY(-50%); z-index:1;
+    color:#fff; opacity:.30;
+  }
+  .grid{display:grid; gap:1rem; grid-template-columns:repeat(auto-fit,minmax(15rem,1fr))}
+  /* dark navy in both colour schemes, so the card contents are pinned to literal light
+     values: --fg and --muted would go near-black on it in light mode */
+  .card{
+    position:relative; z-index:0; overflow:hidden; padding:.9rem 1.25rem .95rem;
+    background:rgba(0,20,60,.85); border:1px solid rgba(255,255,255,.12);
+  }
+  /* the icon that used to sit in the card heading, blown up as a watermark. z-index:0 on
+     the card makes it a stacking context, so the mark at z-index:-1 lands on top of the
+     navy fill but behind the text. overflow:hidden lets it bleed off the corner */
+  .card-mark{
+    position:absolute; top:-1rem; right:-1rem; z-index:-1;
+    width:7.5rem; height:7.5rem; fill:currentColor; color:#fff; opacity:.10;
+    pointer-events:none;
+  }
+  /* caps need positive tracking and a little less size: the -.01em that suited mixed
+     case sets capitals too tight, and caps read larger at the same point size */
+  .card h3{
+    margin:0 0 .5rem; font-size:.92rem; letter-spacing:.07em;
+    text-transform:uppercase; color:rgb(255,210,0);
+  }
+  .card p{margin:0; color:rgba(255,255,255,.78); font-size:.95rem}
+  .stats{display:grid; gap:1rem; grid-template-columns:repeat(auto-fit,minmax(13rem,1fr))}
+  .stat .n{font-size:1.75rem; font-weight:700; letter-spacing:-.02em; color:var(--accent)}
+  .stat p{margin:.2rem 0 0; color:var(--muted); font-size:.95rem}
+  ul.plain{list-style:none; padding:0; margin:0; columns:2 21rem; column-gap:2.75rem}
+  ul.plain li{
+    padding:.6rem 0; border-bottom:1px solid var(--line); color:var(--muted);
+    break-inside:avoid;
+  }
+  ul.plain li:last-child{border-bottom:0}
+  ul.plain strong{color:var(--fg); font-weight:600}
+  .who{display:grid; gap:1.5rem; grid-template-columns:minmax(0,1fr)}
+  @media(min-width:40rem){ .who{grid-template-columns:8.25rem minmax(0,1fr); align-items:start} }
+  /* 8.25rem is where the two-column copy settles on desktop, so the circle meets the
+     top and bottom of the text beside it. grid cannot derive this on its own: column
+     widths are resolved before any row height exists */
+  .portrait{
+    width:8.25rem; height:8.25rem; border-radius:50%; display:block;
+    object-fit:cover; object-position:50% 42%;
+  }
+  .who p{margin:0 0 .8rem; color:var(--muted); break-inside:avoid}
+  .who p:first-child{color:var(--fg)}
+  @media(min-width:56rem){ .who-copy{columns:2 19rem; column-gap:2.5rem} }
+  .demo{margin:0 0 1rem}
+  .demo .kicker{font-size:.95rem; color:var(--muted); margin:0 0 .6rem}
+  /* the address carries a hand-drawn marker underline instead of a text-decoration
+     rule. the font-size sits on the wrapper so the mark can be sized in em and track
+     the clamp, and the svg is absolute so it never affects layout */
+  .addr-wrap{
+    position:relative; display:inline-block; margin-bottom:.9rem;
+    font-size:clamp(1.15rem,3.7vw,1.7rem);
+  }
+  .demo a.addr{
+    display:inline-block; font-size:inherit; font-weight:700;
+    letter-spacing:-.01em; word-break:break-all; text-decoration:none;
+    color:var(--fg);
+  }
+  .addr-mark{
+    position:absolute; left:-.07em; bottom:-.34em; width:calc(100% + .16em); height:.52em;
+    color:var(--mark); pointer-events:none; overflow:visible;
+    transition:opacity .18s ease, transform .18s ease;
+  }
+  .addr-wrap:hover .addr-mark{opacity:.85; transform:translateY(.05em)}
+  @media (prefers-reduced-motion:reduce){ .addr-mark{transition:none} }
+  .demo .after{margin:.8rem 0 0; color:var(--muted); font-size:.95rem; max-width:60ch}
+  /* the four capability cards sit on the Arlanda photo. the panel is a fixed dark
+     surface in both colour schemes, so the cards inside it are translucent glass with
+     white text rather than following the light/dark tokens */
+  .showcase{
+    position:relative; overflow:hidden; margin:0;
+    background-color:#0d1a24; display:flex; align-items:center;
+  }
+  .showcase::before{
+    content:""; position:absolute; inset:0;
+    background-image:url("../img/arlanda-1600.jpg");
+    background-image:-webkit-image-set(url("../img/arlanda-1600.webp") type("image/webp"),
+                                       url("../img/arlanda-1600.jpg") type("image/jpeg"));
+    background-image:image-set(url("../img/arlanda-1600.webp") type("image/webp"),
+                               url("../img/arlanda-1600.jpg") type("image/jpeg"));
+    background-size:cover; background-position:center 58%;
+  }
+  @media (max-width:48rem){
+    .showcase::before{
+      background-image:url("../img/arlanda-900.jpg");
+      background-image:-webkit-image-set(url("../img/arlanda-900.webp") type("image/webp"),
+                                         url("../img/arlanda-900.jpg") type("image/jpeg"));
+      background-image:image-set(url("../img/arlanda-900.webp") type("image/webp"),
+                                 url("../img/arlanda-900.jpg") type("image/jpeg"));
+    }
+  }
+  /* a one-sided scrim, heavy where the copy sits and opening up towards the right so
+     the photo still reads. an even wash would flatten the whole image for no gain */
+  .showcase::after{
+    content:""; position:absolute; inset:0;
+    background:linear-gradient(100deg,
+      rgba(7,16,24,.94) 0%, rgba(7,16,24,.88) 38%, rgba(7,16,24,.55) 72%, rgba(7,16,24,.28) 100%);
+  }
+  /* the panel is a fixed dark surface in both colour schemes, so the copy on it is
+     pinned to literal light values rather than the theme tokens */
+  .showcase-copy{position:relative; z-index:1; padding:1.4rem 1.75rem 1.5rem; max-width:52ch}
+  .showcase-copy p{color:#fff; font-size:1.05rem; line-height:1.6}
+  .showcase-copy .org{
+    font-size:1.2rem; font-weight:650; letter-spacing:-.01em; margin:0 0 .5rem;
+  }
+  .showcase-copy a{color:#fff; text-decoration:underline; text-underline-offset:.15em}
+  .showcase-copy p.fineprint{
+    margin:.9rem 0 0; columns:auto; color:rgba(255,255,255,.78);
+  }
+  /* body text runs in two columns on wide screens and collapses to one automatically
+     when a column would drop below 21rem; headings sit outside these containers so they
+     always span the full width */
+  .prose{columns:2 21rem; column-gap:2.75rem}
+  .prose p{color:var(--muted); margin:0 0 .9rem; break-inside:avoid}
+  .prose p:last-child{margin-bottom:0}
+  .prose p.first{color:var(--fg)}
+  .fineprint{
+    font-size:.85rem; color:var(--muted); margin:1.25rem 0 0;
+    columns:2 21rem; column-gap:2.75rem;
+  }
+  /* "Or meet us in person" is laid out as an explicit two-column grid rather than with
+     .prose, because CSS columns would flow the callout across the break. the standing
+     invitation runs in the main column and the dated trade-show note sits beside it */
+  .visit-text{display:grid; gap:1.5rem; grid-template-columns:1fr}
+  @media(min-width:52rem){
+    .visit-text{
+      grid-template-columns:minmax(0,1fr) minmax(17rem,21rem);
+      gap:2.5rem; align-items:start;
+    }
+  }
+  .visit-main{max-width:62ch}
+  .visit-main > p{color:var(--muted); margin:0 0 .9rem}
+  .visit-main > p.first{color:var(--fg)}
+  .visit-main > p:last-child{margin-bottom:0}
+  /* the MRO Europe note is a dated, expiring opportunity sitting between two pieces of
+     evergreen copy, so it is lifted out of the paragraph flow instead of reading as one
+     more paragraph the eye slides over */
+  .event{
+    display:flex; gap:.8rem; align-items:flex-start;
+    margin:0; padding:.9rem 1.05rem;
+    background:var(--card); border:1px solid var(--line);
+    border-left:3px solid rgb(255,210,0);
+  }
+  .event .ico{width:1.15em; height:1.15em; color:var(--accent); margin-top:.3rem}
+  .event p{margin:0; color:var(--fg); font-size:.95rem; line-height:1.6}
+  .event strong{font-weight:650; white-space:nowrap}
+
+  /* data retention: the demo asks people to email real commercial RFQs, so the promises
+     about what happens to that data are given structure rather than a grey paragraph */
+  .retention{
+    margin:1.75rem 0 0; padding:1.15rem 1.3rem;
+    background:var(--card); border:1px solid var(--line); border-radius:10px;
+  }
+  .retention-head{display:flex; align-items:center; gap:.55rem; margin:0 0 .9rem}
+  .retention-head .ico{width:1.1em; height:1.1em; color:var(--accent)}
+  .retention-head h3{margin:0; font-size:.95rem; font-weight:650; letter-spacing:-.01em}
+  /* two content-width columns packed to the left. auto-fit/1fr tracks stretched these
+     four short items across the full page width and stranded the fourth on its own row */
+  .retention-list{
+    list-style:none; margin:0; padding:0;
+    display:grid; gap:.55rem 2.25rem; grid-template-columns:1fr;
+  }
+  @media(min-width:34rem){
+    .retention-list{grid-template-columns:repeat(2,minmax(0,auto)); justify-content:start}
+  }
+  .retention-list li{
+    display:flex; align-items:flex-start; gap:.55rem;
+    font-size:.875rem; line-height:1.5; color:var(--fg);
+  }
+  /* small tick drawn in CSS so the icon sprite stays untouched */
+  .retention-list li::before{
+    content:""; flex:none; width:.4rem; height:.72rem; margin:.28rem .1rem 0 0;
+    border:solid var(--accent); border-width:0 1.6px 1.6px 0; transform:rotate(45deg);
+  }
+  .retention-note{
+    margin:1rem 0 0; padding-top:.9rem; border-top:1px solid var(--line);
+    font-size:.85rem; line-height:1.55; color:var(--muted); max-width:64ch;
+  }
+
+  /* a plain mock-up of the message a buyer would send, drawn to read like a real
+     email rather than a code sample: header fields, then ordinary body text */
+  .sample-note{margin:1.5rem 0 .55rem; color:var(--muted); font-size:.95rem}
+  .email{
+    max-width:var(--mockw);
+    border:1px solid var(--code-line); background:var(--code-bg); overflow:hidden;
+    box-shadow:0 1px 3px rgba(16,24,32,.07);
+  }
+  .email-head{padding:.9rem 1.1rem .8rem; border-bottom:1px solid var(--code-line)}
+  .email-subject{
+    margin:0 0 .55rem; font-size:1rem; font-weight:650; letter-spacing:-.01em; color:var(--fg);
+  }
+  .email-row{display:flex; gap:.6rem; font-size:.85rem; line-height:1.5; color:var(--muted)}
+  .email-row .k{flex:none; width:3.2rem}
+  .email-row .v{color:var(--fg); word-break:break-word}
+  .email-body{padding:1rem 1.1rem 1.15rem; font-size:.93rem; line-height:1.6; color:var(--fg)}
+  .email-body p{margin:0 0 .85rem}
+  .email-body p:last-child{margin-bottom:0}
+  /* deliberately ragged: three lines typed by three different people, with different
+     separators, casing and field order. a tidy aligned grid would quietly suggest the
+     parser wants clean columns, which is the opposite of the claim underneath it */
+  .lines{margin:0 0 .95rem}
+  .lines p{margin:0; line-height:1.75}
+  /* the quote comes back as a PDF, so it is shown as a screenshot of the real document
+     rather than re-drawn in html. cropped to the printed content: the rest of the A4 is
+     empty and would put a half-blank page on the screen */
+  .quote-shot{margin:0 0 1rem; max-width:var(--mockw)}
+  .quote-open{display:block; cursor:zoom-in}
+  /* native <dialog>: Esc, focus trapping and the backdrop come for free. without JS the
+     anchor is left alone and still opens the full-size image directly */
+  .lightbox{
+    border:0; padding:0; background:transparent; max-width:96vw; max-height:94vh;
+    overflow:visible;
+  }
+  .lightbox::backdrop{background:rgba(7,16,24,.82)}
+  .lightbox img{
+    display:block; width:auto; height:auto; max-width:96vw; max-height:94vh;
+    background:#fff; box-shadow:0 10px 40px rgba(0,0,0,.45);
+  }
+  .lightbox-close{
+    position:fixed; top:1rem; right:1rem; width:2.4rem; height:2.4rem;
+    display:grid; place-items:center; cursor:pointer;
+    border:0; border-radius:50%; background:#fff; color:#15181d;
+    font-size:1.4rem; line-height:1; box-shadow:0 2px 8px rgba(0,0,0,.35);
+  }
+  .quote-shot img{
+    display:block; width:100%; height:auto;
+    border:1px solid var(--code-line);
+  }
+  .quote-shot figcaption{margin:.55rem 0 0; font-size:.8rem; color:var(--muted)}
+  .ico{width:1em; height:1em; fill:currentColor; flex:none}
+  a{color:var(--accent)}
+  .contact p{margin:.15rem 0}
+  footer{border-top:1px solid var(--line); padding:2rem 0 3rem; color:var(--muted); font-size:.85rem}
+  footer p{margin:.15rem 0}
+  .todo{color:#b3541e}
+  @media (prefers-color-scheme: dark){ .todo{color:#e0a273} }
+</style>
+</head>
+<body>
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true"><symbol id="i-send" viewBox="0 0 32 32"><path d="M12.379 19.737l4.766 9.591 12.181-26.656-26.653 12.792 9.706 4.273zM12.662 18.698l-7.44-3.276 20.434-9.807-12.993 13.082zM17.106 26.866l-3.688-7.421 13.109-13.198-9.421 20.619z"></path></symbol><symbol id="i-plane" viewBox="0 0 32 32"><path d="M9.123 30.464l-1.33-6.268-6.318-1.397 1.291-2.475 5.785-0.316c0.297-0.386 0.96-1.234 1.374-1.648l5.271-5.271-10.989-5.388 2.782-2.782 13.932 2.444 4.933-4.933c0.585-0.585 1.496-0.894 2.634-0.894 0.776 0 1.395 0.143 1.421 0.149l0.3 0.070 0.089 0.295c0.469 1.55 0.187 3.298-0.67 4.155l-4.956 4.956 2.434 13.875-2.782 2.782-5.367-10.945-4.923 4.924c-0.518 0.517-1.623 1.536-2.033 1.912l-0.431 5.425-2.449 1.329zM3.065 22.059l5.63 1.244 1.176 5.544 0.685-0.372 0.418-5.268 0.155-0.142c0.016-0.014 1.542-1.409 2.153-2.020l5.978-5.979 5.367 10.945 1.334-1.335-2.434-13.876 5.349-5.348c0.464-0.464 0.745-1.598 0.484-2.783-0.216-0.032-0.526-0.066-0.87-0.066-0.593 0-1.399 0.101-1.881 0.582l-5.325 5.325-13.933-2.444-1.335 1.334 10.989 5.388-6.326 6.326c-0.483 0.482-1.418 1.722-1.428 1.734l-0.149 0.198-5.672 0.31-0.366 0.702z"></path></symbol><symbol id="i-stopwatch" viewBox="0 0 32 32"><path d="M25.039 8.781l0.902-0.902 0.914 0.914 1.131-1.131-2.582-2.582-1.131 1.131 0.914 0.914-0.902 0.902c-1.999-1.833-4.607-3.008-7.485-3.195v-2.161h-1.599v2.161c-6.399 0.412-11.462 5.73-11.462 12.234 0 6.772 5.49 12.262 12.262 12.262s12.262-5.489 12.262-12.262c0-3.195-1.222-6.103-3.223-8.285zM16 28.262c-6.173 0-11.196-5.023-11.196-11.196s5.023-11.196 11.196-11.196 11.196 5.022 11.196 11.196c0 6.173-5.023 11.196-11.196 11.196z"></path><path d="M16.533 15.565v-7.029h-1.066v7.029c-0.62 0.221-1.066 0.806-1.066 1.502s0.447 1.281 1.066 1.502v2.23h1.066v-2.23c0.62-0.221 1.066-0.806 1.066-1.502s-0.447-1.281-1.066-1.502z"></path></symbol><symbol id="i-shield" viewBox="0 0 20 32"><path d="M10.133 2.667l-10.133 1.92c0 0 0 12.16 0 14.347 0 3.467 3.040 7.947 10.133 10.4 7.093-2.453 10.133-6.933 10.133-10.4 0-2.187 0-14.347 0-14.347l-10.133-1.92zM19.2 18.933c0 2.987-2.827 6.987-9.067 9.28-6.24-2.293-9.067-6.293-9.067-9.28v-13.44l9.067-1.76 9.067 1.707v13.493z"></path><path d="M7.093 10.773l-0.8 0.747 3.2 3.2-3.2 3.2 0.8 0.747 3.147-3.2 3.2 3.2 0.747-0.747-3.2-3.2 3.2-3.2-0.747-0.747-3.2 3.2z"></path></symbol><symbol id="i-search" viewBox="0 0 32 32"><path d="M28.591 27.273l-7.263-7.264c1.46-1.756 2.339-4.010 2.339-6.471 0-5.595-4.535-10.129-10.129-10.129-5.594 0-10.129 4.535-10.129 10.129 0 5.594 4.536 10.129 10.129 10.129 2.462 0 4.716-0.879 6.471-2.339l7.263 7.264 1.319-1.319zM4.475 13.538c0-4.997 4.065-9.063 9.063-9.063 4.997 0 9.063 4.066 9.063 9.063s-4.066 9.063-9.063 9.063c-4.998 0-9.063-4.066-9.063-9.063z"></path></symbol><symbol id="i-cash" viewBox="0 0 29 32"><path d="M16.784 10.755c-1.737 0-3.147 1.409-3.147 3.147s1.41 3.148 3.147 3.148c1.739 0 3.147-1.409 3.147-3.148s-1.409-3.147-3.147-3.147zM16.784 16c-1.156 0-2.098-0.941-2.098-2.099s0.941-2.098 2.098-2.098c1.158 0 2.098 0.941 2.098 2.098s-0.941 2.099-2.098 2.099z"></path><path d="M4.196 6.034v15.735h25.176v-15.735h-25.176zM28.324 9.583v11.137h-23.078v-13.637h23.078v2.5z"></path><path d="M23.746 22.819h-20.599v-14.686h-1.049v15.735h25.177v-1.049h-1.049z"></path><path d="M21.648 24.917h-20.599v-14.686h-1.049v15.735h25.177v-1.049h-1.049z"></path><path d="M6.819 8.165h3.147v1.049h-3.147v-1.049z"></path><path d="M6.819 18.623h3.147v1.049h-3.147v-1.049z"></path><path d="M23.603 8.165h3.147v1.049h-3.147v-1.049z"></path><path d="M23.603 18.623h3.147v1.049h-3.147v-1.049z"></path></symbol><symbol id="i-cart" viewBox="0 0 32 32"><path d="M30.622 9.602h-22.407l-1.809-7.464h-5.027v1.066h4.188l5.198 21.443c-1.108 0.323-1.923 1.334-1.923 2.547 0 1.472 1.193 2.666 2.666 2.666s2.666-1.194 2.666-2.666c0-0.603-0.208-1.153-0.545-1.599h7.487c-0.337 0.446-0.545 0.997-0.545 1.599 0 1.472 1.193 2.666 2.665 2.666s2.666-1.194 2.666-2.666c0-1.473-1.193-2.665-2.666-2.666v0h-11.403l-0.517-2.133h14.968l4.337-12.795zM13.107 27.196c0 0.882-0.717 1.599-1.599 1.599s-1.599-0.717-1.599-1.599c0-0.882 0.717-1.599 1.599-1.599s1.599 0.718 1.599 1.599zM24.836 27.196c0 0.882-0.718 1.599-1.6 1.599s-1.599-0.717-1.599-1.599c0-0.882 0.717-1.599 1.599-1.599 0.882 0 1.6 0.718 1.6 1.599zM11.058 21.331l-2.585-10.662h20.662l-3.615 10.662h-14.462z"></path></symbol><symbol id="i-shuffle" viewBox="0 0 32 32"><path d="M23.812 18.906l3.494 3.496h-6.296l-13.012-13.861h-5.345v1.066h4.884l13.012 13.861h6.758l-3.485 3.486 0.754 0.754 4.772-4.774-4.781-4.782z"></path><path d="M7.537 22.402h-4.884v1.066h5.345l5.163-5.5-0.778-0.73z"></path><path d="M21.011 9.607h6.295l-3.485 3.486 0.754 0.754 4.772-4.774-4.781-4.782-0.754 0.754 3.494 3.496h-6.758l-5.185 5.545 0.779 0.728z"></path></symbol><symbol id="i-graph" viewBox="0 0 32 32"><path d="M29.328 16c0-7.181-5.682-13.034-12.796-13.315v-0.014h-1.066v0.014c-7.113 0.28-12.795 6.133-12.795 13.315 0 7.362 5.967 13.328 13.328 13.328 2.586 0 4.997-0.739 7.042-2.013l0.007 0.010 0.397-0.27c0.005-0.003 0.009-0.006 0.014-0.009l0.472-0.32-0.007-0.010c3.279-2.428 5.405-6.323 5.405-10.717zM27.218 11.057l-10.685 4.163v-11.468c4.774 0.206 8.848 3.153 10.685 7.305zM16 28.262c-6.761 0-12.262-5.5-12.262-12.262 0-6.582 5.214-11.968 11.729-12.248v12.412l6.973 10.265c-1.873 1.16-4.079 1.833-6.44 1.833zM23.321 25.831l-6.505-9.577 10.788-4.204c0.424 1.24 0.657 2.568 0.657 3.95 0 4.019-1.944 7.593-4.941 9.831z"></path></symbol><symbol id="i-tools" viewBox="0 0 32 32"><path d="M29.532 25.76l-5.655-5.655 0.754-0.754-0.754-0.754-2.261 2.261-3.771-3.77 4.53-4.532c0.603 0.215 1.234 0.324 1.882 0.324 1.493 0 2.897-0.582 3.954-1.637 1.63-1.631 2.092-4.054 1.178-6.174l-0.311-0.722-2.43 2.43-1.956 0.027 0.026-1.866 2.477-2.477-0.72-0.312c-0.706-0.306-1.457-0.461-2.229-0.461-1.494 0-2.897 0.582-3.952 1.637-1.546 1.545-2.043 3.802-1.311 5.84l-4.529 4.529-6.409-6.408 0.754-0.754-4.145-4.146-2.264 2.261 4.147 4.147 0.753-0.754 6.409 6.408-4.529 4.529c-0.605-0.217-1.239-0.326-1.888-0.326-1.493 0-2.897 0.582-3.953 1.637-1.633 1.632-2.095 4.059-1.176 6.181l0.312 0.72 2.477-2.477 1.865-0.025-0.027 1.956-2.43 2.43 0.722 0.311c0.704 0.303 1.452 0.458 2.221 0.458 1.494 0 2.897-0.581 3.952-1.636 1.544-1.544 2.041-3.799 1.314-5.833l4.532-4.532 3.771 3.769-2.263 2.263 0.754 0.754 0.754-0.754 5.654 5.654c0.503 0.504 1.174 0.781 1.885 0.781s1.381-0.277 1.885-0.781c1.039-1.039 1.039-2.73-0-3.769zM3.899 4.648l0.754-0.753 2.638 2.638-0.754 0.754-2.639-2.639zM11.448 22.456c0.739 1.716 0.364 3.679-0.955 4.999-0.854 0.854-1.989 1.324-3.198 1.324-0.347 0-0.689-0.039-1.021-0.116l1.569-1.569 0.047-3.485-3.394 0.046-1.619 1.619c-0.356-1.51 0.081-3.103 1.208-4.229 0.854-0.854 1.99-1.325 3.199-1.325 0.626 0 1.233 0.125 1.806 0.373l0.333 0.144 10.819-10.819-0.144-0.333c-0.744-1.719-0.37-3.682 0.952-5.004 0.854-0.854 1.99-1.325 3.198-1.325 0.35 0 0.695 0.040 1.030 0.117l-1.618 1.618-0.047 3.394 3.485-0.047 1.57-1.57c0.352 1.507-0.086 3.097-1.209 4.221-0.855 0.854-1.991 1.325-3.2 1.325-0.624 0-1.23-0.125-1.801-0.371l-0.332-0.143-10.821 10.823 0.143 0.332zM28.779 28.775c-0.302 0.302-0.704 0.469-1.131 0.469s-0.829-0.167-1.131-0.469l-5.654-5.654 2.262-2.262 5.655 5.655c0.624 0.624 0.624 1.638 0.001 2.261z"></path></symbol><symbol id="i-user" viewBox="0 0 32 32"><path d="M16 3.205c-7.067 0-12.795 5.728-12.795 12.795s5.728 12.795 12.795 12.795 12.795-5.728 12.795-12.795c0-7.067-5.728-12.795-12.795-12.795zM16 4.271c6.467 0 11.729 5.261 11.729 11.729 0 2.845-1.019 5.457-2.711 7.49-1.169-0.488-3.93-1.446-5.638-1.951-0.146-0.046-0.169-0.053-0.169-0.66 0-0.501 0.206-1.005 0.407-1.432 0.218-0.464 0.476-1.244 0.569-1.944 0.259-0.301 0.612-0.895 0.839-2.026 0.199-0.997 0.106-1.36-0.026-1.7-0.014-0.036-0.028-0.071-0.039-0.107-0.050-0.234 0.019-1.448 0.189-2.391 0.118-0.647-0.030-2.022-0.921-3.159-0.562-0.719-1.638-1.601-3.603-1.724l-1.078 0.001c-1.932 0.122-3.008 1.004-3.57 1.723-0.89 1.137-1.038 2.513-0.92 3.159 0.172 0.943 0.239 2.157 0.191 2.387-0.010 0.040-0.025 0.075-0.040 0.111-0.131 0.341-0.225 0.703-0.025 1.7 0.226 1.131 0.579 1.725 0.839 2.026 0.092 0.7 0.35 1.48 0.569 1.944 0.159 0.339 0.234 0.801 0.234 1.454 0 0.607-0.023 0.614-0.159 0.657-1.767 0.522-4.579 1.538-5.628 1.997-1.725-2.042-2.768-4.679-2.768-7.555 0-6.467 5.261-11.729 11.729-11.729zM7.811 24.386c1.201-0.49 3.594-1.344 5.167-1.808 0.914-0.288 0.914-1.058 0.914-1.677 0-0.513-0.035-1.269-0.335-1.908-0.206-0.438-0.442-1.189-0.494-1.776-0.011-0.137-0.076-0.265-0.18-0.355-0.151-0.132-0.458-0.616-0.654-1.593-0.155-0.773-0.089-0.942-0.026-1.106 0.027-0.070 0.053-0.139 0.074-0.216 0.128-0.468-0.015-2.005-0.17-2.858-0.068-0.371 0.018-1.424 0.711-2.311 0.622-0.795 1.563-1.238 2.764-1.315l1.011-0.001c1.233 0.078 2.174 0.521 2.797 1.316 0.694 0.887 0.778 1.94 0.71 2.312-0.154 0.852-0.298 2.39-0.17 2.857 0.022 0.078 0.047 0.147 0.074 0.217 0.064 0.163 0.129 0.333-0.025 1.106-0.196 0.977-0.504 1.461-0.655 1.593-0.103 0.091-0.168 0.218-0.18 0.355-0.051 0.588-0.286 1.338-0.492 1.776-0.236 0.502-0.508 1.171-0.508 1.886 0 0.619 0 1.389 0.924 1.68 1.505 0.445 3.91 1.271 5.18 1.77-2.121 2.1-5.035 3.4-8.248 3.4-3.183 0-6.073-1.277-8.188-3.342z"></path></symbol><symbol id="i-marker" viewBox="0 0 32 32"><path d="M16.001 1.072c5.291 0 9.596 4.305 9.596 9.597 0 1.683-0.446 3.341-1.29 4.799l-8.307 14.394-8.308-14.395c-0.843-1.456-1.289-3.115-1.289-4.798 0-5.292 4.305-9.597 9.597-9.597zM16.001 14.4c2.058 0 3.731-1.674 3.731-3.731s-1.674-3.731-3.731-3.731c-2.058 0-3.732 1.674-3.732 3.731s1.674 3.731 3.732 3.731zM16.001 0.006c-5.889 0-10.663 4.775-10.663 10.663 0 1.945 0.523 3.762 1.432 5.332l9.23 15.994 9.23-15.994c0.909-1.57 1.432-3.387 1.432-5.332 0-5.888-4.774-10.663-10.662-10.663v0zM16.001 13.334c-1.472 0-2.666-1.193-2.666-2.665 0-1.471 1.194-2.665 2.666-2.665s2.665 1.194 2.665 2.665c0 1.472-1.193 2.665-2.665 2.665v0z"></path></symbol><symbol id="i-config" viewBox="0 0 32 32"><path d="M17.599 3.738v2.598l0.8 0.207c0.905 0.234 1.768 0.597 2.566 1.081l0.715 0.434 1.86-1.86 2.262 2.262-1.888 1.888 0.407 0.708c0.451 0.785 0.788 1.635 1.002 2.527l0.196 0.817h2.744v3.199h-2.806l-0.216 0.782c-0.233 0.844-0.583 1.654-1.040 2.406l-0.434 0.716 2.036 2.035-2.262 2.262-2.064-2.064-0.707 0.407c-0.734 0.422-1.531 0.745-2.368 0.961l-0.8 0.206v2.951h-3.199v-2.951l-0.8-0.206c-0.837-0.216-1.634-0.539-2.368-0.961l-0.708-0.407-2.064 2.064-2.262-2.262 2.036-2.035-0.434-0.716c-0.457-0.753-0.807-1.562-1.040-2.406l-0.216-0.782h-2.806v-3.199h2.744l0.196-0.817c0.213-0.891 0.551-1.742 1.002-2.527l0.407-0.708-1.888-1.888 2.262-2.262 1.86 1.86 0.715-0.434c0.798-0.484 1.661-0.848 2.566-1.081l0.8-0.207v-2.598h3.199zM16 20.799c2.646 0 4.798-2.153 4.798-4.799s-2.152-4.799-4.798-4.799-4.798 2.153-4.798 4.799c0 2.646 2.152 4.799 4.798 4.799zM18.666 2.672h-5.331v2.839c-1.018 0.263-1.975 0.67-2.852 1.202l-2.022-2.022-3.769 3.77 2.065 2.065c-0.498 0.867-0.875 1.81-1.114 2.809h-2.97v5.331h3.060c0.263 0.953 0.655 1.85 1.156 2.676l-2.198 2.198 3.769 3.77 2.241-2.241c0.816 0.469 1.7 0.828 2.633 1.069v3.191h5.331v-3.191c0.933-0.241 1.817-0.6 2.633-1.069l2.241 2.241 3.769-3.77-2.198-2.198c0.501-0.826 0.893-1.723 1.156-2.676h3.060v-5.331h-2.97c-0.239-0.999-0.616-1.941-1.114-2.809l2.065-2.065-3.769-3.77-2.022 2.022c-0.877-0.532-1.834-0.939-2.852-1.202v-2.839h-0zM16 19.733c-2.062 0-3.732-1.671-3.732-3.733s1.67-3.732 3.732-3.732 3.732 1.671 3.732 3.732c0 2.062-1.67 3.733-3.732 3.733v0z"></path></symbol><symbol id="i-compass" viewBox="0 0 32 32"><path d="M17.992 5.493c0.414-0.47 0.674-1.080 0.674-1.755 0-1.472-1.193-2.665-2.666-2.665s-2.666 1.193-2.666 2.665c0 0.675 0.259 1.285 0.674 1.755-6.12 0.957-10.803 6.251-10.803 12.64 0 7.067 5.729 12.795 12.795 12.795s12.795-5.728 12.795-12.795c0-6.389-4.683-11.683-10.803-12.64zM16 2.139c0.882 0 1.599 0.717 1.599 1.599s-0.717 1.599-1.599 1.599-1.599-0.717-1.599-1.599 0.717-1.599 1.599-1.599zM16 29.861c-6.467 0-11.729-5.261-11.729-11.729s5.261-11.729 11.729-11.729 11.729 5.261 11.729 11.729-5.261 11.729-11.729 11.729z"></path><path d="M9.605 24.538l8.675-4.109 4.109-8.676-8.704 4.081-4.081 8.703zM14.247 17.15l2.721 2.721-5.138 2.433 2.417-5.155zM17.722 19.118l-2.721-2.721 5.155-2.417-2.434 5.139z"></path></symbol></svg>
+
+<header>
+  <div class="wrap">
+    <a href="../index.html"><img class="logo" src="../logo.svg" alt="Automatik IT" width="278" height="60"></a>
+    <div class="tag">Stockholm-Arlanda Airport, Sweden</div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <h1>
+    <span class="h1-a">The first <span class="hl">accurate quote</span> usually wins the order.</span>
+    <span class="h1-b">Yours is sent first, or with one click.</span>
+  </h1>
+  <p class="lede">
+    Automated RFQ quoting for aviation parts distributors: a finished quote in about a
+    minute, built on your own catalogue, your stock and your pricing rules. Requests are
+    read the way your customers already send them, as body text, a spreadsheet, a PDF or
+    a scan, and every line is cross-referenced, priced and written up without anyone
+    rekeying a part number. The finished quote goes back on its own, or waits in your inbox
+    for one click to release it, and it is out the door while your competitors are still
+    opening the same email.
+  </p>
+
+  <section>
+    <svg class="section-mark" aria-hidden="true"><use href="#i-send"/></svg>
+    <h2>Give it a try</h2>
+    <div class="demo">
+      <p class="kicker">It is running now, so you can test it. Send a real RFQ, or just a few part numbers with quantities, to:</p>
+      <span class="addr-wrap">
+        <a class="addr" href="mailto:rfq-demo@automatikit.com">rfq-demo@automatikit.com</a>
+        <svg class="addr-mark" viewBox="0 0 300 16" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+          <!-- filled rather than stroked, so the stroke swells through the middle and
+               thins to a flick at the end the way a marker actually lays down ink. the
+               start is a rounded cap: a single cubic bowing left by half the stroke
+               width, where the closing Z used to cut a flat vertical edge -->
+          <path fill="currentColor" d="M5,9.3 C42,5.0 95,2.6 148,2.4 C208,2.2 266,5.0 299,9.4
+                   L299,11.6 C264,8.4 205,8.5 147,8.8 C93,9.1 42,11.9 5,15.0
+                   C1.2,15.0 1.2,9.3 5,9.3 Z"/>
+        </svg>
+      </span>
+      <p class="after">A quote comes back automatically, priced against a sample
+      catalogue. It reads the email body, or an attached PDF, Excel, Word or CSV, even a
+      scanned document or a photo.</p>
+
+      <p class="sample-note">Nothing more than this is needed:</p>
+      <div class="email">
+        <div class="email-head">
+          <p class="email-subject">RFQ-24815 - spares required</p>
+          <div class="email-row"><span class="k">To</span><span class="v">rfq-demo@automatikit.com</span></div>
+        </div>
+        <div class="email-body">
+          <p>Hello,</p>
+          <p>Please quote the following against our ref RFQ-24815:</p>
+          <div class="lines">
+            <p>AN3-4A, qty 500, NE, w/ C of C</p>
+            <p>NAS1149F0432P - 2000 pcs - NE - C of C</p>
+            <p>PN MS27640-3, QTY 24, OH, 8130-3 req'd</p>
+            <p>3214000-3 check valve, 2 off, SV, 8130-3 req'd</p>
+          </div>
+          <p>Needed as soon as possible.</p>
+          <p>Best regards,</p>
+        </div>
+      </div>
+      <p class="after">Condition codes, certification requirements, customer references
+      and ordinary covering text are all fine, and the same list works as an attachment
+      rather than body text. Copy the four lines above if you would rather not send
+      anything of your own.</p>
+
+      <p class="sample-note">This is what comes back, as a PDF attached to the reply, in
+      your own name and branding:</p>
+      <figure class="quote-shot">
+        <a class="quote-open" href="../img/sample-quote-2000.jpg"
+           aria-label="Open the sample quotation at full size">
+          <picture>
+            <source type="image/webp"
+                    srcset="../img/sample-quote-625.webp 625w, ../img/sample-quote-1250.webp 1250w"
+                    sizes="(max-width:44rem) 100vw, 42rem">
+            <img src="../img/sample-quote-1250.jpg"
+                 srcset="../img/sample-quote-625.jpg 625w, ../img/sample-quote-1250.jpg 1250w"
+                 sizes="(max-width:44rem) 100vw, 42rem"
+                 width="1250" height="1082" loading="lazy" decoding="async"
+                 alt="Quotation PDF answering the four requested lines: AN3-4A, NAS1149F0432P, MS27640-3 and the 3214000-3 check valve, each showing part number, description, certificate, quantity, availability, unit price and total, followed by a subtotal, a total of 2,485.40 pounds and an accept button.">
+          </picture>
+        </a>
+        <figcaption>Sample output. The company, parts and prices are illustrative.
+        Click to enlarge.</figcaption>
+      </figure>
+      <p class="after">Every line is cross-referenced, checked against stock and lead time
+      and priced by your own rules, with the certification each line was asked for carried
+      through. In the demo it is priced against a sample catalogue; on your own data it is
+      your catalogue, your stock and your margins.</p>
+    </div>
+
+    <div class="retention">
+      <div class="retention-head">
+        <svg class="ico" aria-hidden="true"><use href="#i-shield"/></svg>
+        <h3>What happens to what you send</h3>
+      </div>
+      <ul class="retention-list">
+        <li>Used only to produce your demo quote</li>
+        <li>Not shared with anyone</li>
+        <li>Not added to any catalogue or mailing list</li>
+        <li>Deleted after 30 days</li>
+      </ul>
+      <p class="retention-note">If you would rather not send anything real, made-up part
+      numbers work just as well for showing the turnaround speed.</p>
+    </div>
+  </section>
+
+  <section>
+    <svg class="section-mark" aria-hidden="true"><use href="#i-plane"/></svg>
+    <h2>Or meet us in person</h2>
+    <div class="visit-text">
+      <div class="visit-main">
+        <p class="first">The office is in Sky City, inside Stockholm-Arlanda Airport itself,
+        a few minutes from the gates. If you are flying through Stockholm, you are welcome
+        to come by and see the system running on real data. Half an hour and a coffee is
+        enough.</p>
+        <p>Send an email to <a href="mailto:jimmy@automatikit.com">jimmy@automatikit.com</a>
+        or call <a href="tel:+46735000023">+46 735 00 00 23</a>, and we will meet you on
+        arrival.</p>
+      </div>
+      <div class="event">
+        <svg class="ico" aria-hidden="true"><use href="#i-plane"/></svg>
+        <p>We are also at <strong>MRO Europe 2026</strong> in Amsterdam,
+        <strong>27 to 29 October</strong>, visiting rather than exhibiting, so the days
+        are open. If you are going, say so and we will put an hour aside for you there.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <svg class="section-mark" aria-hidden="true"><use href="#i-stopwatch"/></svg>
+    <h2>What it does</h2>
+    <div class="prose">
+      <p class="first">The supplier who sends an accurate quote first usually gets the
+      order, and the first pass on every RFQ is the same work: cross-reference the part
+      numbers, check the alternates, check stock and lead time, price it.</p>
+      <p>The system does that pass. It reads an inbound RFQ in whatever shape it arrives,
+      matches the requested part numbers against your catalogue and approved alternates,
+      pulls stock, lead time and pricing, and drafts a finished quote in your own name and
+      in the same email thread, within a minute or two. Clear-cut RFQs can go out on their
+      own if you allow it; anything uncertain is emailed to you first, with the finished
+      quote attached and a link that sends it. Releasing one is a click in the mailbox you
+      already have open, not a queue somebody has to remember to check. It runs overnight
+      and at weekends, so replies keep going out around the clock.</p>
+    </div>
+  </section>
+
+  <section>
+    <svg class="section-mark" aria-hidden="true"><use href="#i-shield"/></svg>
+    <h2>On your systems, not ours</h2>
+    <div class="prose">
+      <p class="first">There is no platform to move onto and no licence to sign. It reads
+      your data, in your formats, follows your quoting rules, and can run inside your own
+      network, so your catalogue and pricing stay entirely within your systems and only
+      the finished quote leaves. The build is yours.</p>
+      <p>Because the engine exists already, fitting it to your catalogue, your ERP and
+      your pricing rules is a matter of weeks rather than a project starting from nothing.</p>
+    </div>
+  </section>
+
+  <section>
+    <svg class="section-mark" aria-hidden="true"><use href="#i-config"/></svg>
+    <h2>What else we build</h2>
+    <div class="grid">
+      <div class="card">
+        <svg class="card-mark" aria-hidden="true"><use href="#i-search"/></svg>
+        <h3>Catalogue and cross-reference</h3>
+        <p>Part numbers matched across manufacturers, approved alternates including PMA,
+        and supersession chains that stay correct as OEM revisions and service bulletins
+        change them.</p>
+      </div>
+      <div class="card">
+        <svg class="card-mark" aria-hidden="true"><use href="#i-cash"/></svg>
+        <h3>Pricing automation</h3>
+        <p>Cost, margin, customer agreements and exchange against outright, applied
+        consistently across large line counts, with the rules kept where your team can
+        see and change them.</p>
+      </div>
+      <div class="card">
+        <svg class="card-mark" aria-hidden="true"><use href="#i-cart"/></svg>
+        <h3>Ecommerce and ordering</h3>
+        <p>Parts search and ordering built on your own stock, pricing and account terms,
+        and the listing feeds that keep marketplaces showing what you actually hold.</p>
+      </div>
+      <div class="card">
+        <svg class="card-mark" aria-hidden="true"><use href="#i-shuffle"/></svg>
+        <h3>Integration</h3>
+        <p>The joins between your ERP, whether that is a packaged aviation system or
+        something built in house, and warehouses, supplier feeds and sales channels, so
+        a part number means the same thing everywhere.</p>
+      </div>
+      <div class="card">
+        <svg class="card-mark" aria-hidden="true"><use href="#i-shield"/></svg>
+        <h3>Certification and traceability</h3>
+        <p>Trace packs put together with the quote, from 8130-3 and EASA Form 1 to dual
+        release and back to birth, matched to the condition each customer asked for
+        rather than chased by email afterwards.</p>
+      </div>
+      <div class="card">
+        <svg class="card-mark" aria-hidden="true"><use href="#i-graph"/></svg>
+        <h3>Reporting and win rates</h3>
+        <p>Which quotes convert and which do not, how quickly they went out, and where
+        lines are lost on price or on lead time, broken down by customer and by part.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <svg class="section-mark" aria-hidden="true"><use href="#i-compass"/></svg>
+    <h2>Where the experience comes from</h2>
+    <div class="prose">
+      <p class="first">Our fifteen years have been spent on aftermarket parts for Heavy
+      Machinery and Construction: earthmoving, mining and construction equipment, and the
+      thousands of wear and service parts behind it. Large multi-brand catalogues, heavy
+      OEM cross-referencing, constant supersessions, and the first accurate quote deciding
+      who wins the order.</p>
+      <p>Those are the same mechanics aviation parts distribution runs on, which is why
+      the work carries across with little change. We are not an aviation house that also
+      writes software. We are a parts-catalogue house that has solved these problems at
+      scale, and aviation is where the problems are hardest.</p>
+    </div>
+  </section>
+
+  <section>
+    <svg class="section-mark" aria-hidden="true"><use href="#i-graph"/></svg>
+    <h2>Selected results</h2>
+    <div class="stats">
+      <div class="stat">
+        <div class="n">11 million+</div>
+        <p>Parts and variations under active management</p>
+      </div>
+      <div class="stat">
+        <div class="n">65 MSEK</div>
+        <p>Revenue increase for a client in a single year</p>
+      </div>
+      <div class="stat">
+        <div class="n">15 years</div>
+        <p>Building this kind of software for OEM and aftermarket parts businesses</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <svg class="section-mark" aria-hidden="true"><use href="#i-tools"/></svg>
+    <h2>How we work</h2>
+    <ul class="plain">
+      <li><strong>Built for one company.</strong> No platform to move onto and no licence
+      to sign. What we build reads your data, in your formats, and follows your rules.</li>
+      <li><strong>Runs where you want it.</strong> Inside your own network if that is what
+      the data requires.</li>
+      <li><strong>You own the build.</strong> The code and the data are yours, from the
+      first day and after the work ends.</li>
+      <li><strong>Weeks, not open-ended projects.</strong> We reuse what we have built
+      before, so most work is adaptation rather than starting from nothing.</li>
+      <li><strong>Fixed scope or a day rate.</strong> Whichever suits the piece of work,
+      agreed before it starts.</li>
+      <li><strong>Nothing new for your team to learn.</strong> Quotes go out from your
+      own mailbox and in the same thread, and the ones held for a human are released by a
+      link in that same mailbox, so there is no system to log into and no rollout to
+      manage.</li>
+    </ul>
+  </section>
+
+  <section>
+    <svg class="section-mark" aria-hidden="true"><use href="#i-user"/></svg>
+    <h2>Who you would be working with</h2>
+    <div class="who">
+      <img class="portrait" src="../img/photo.png" width="202" height="174"
+           alt="Jimmy Ehrenhave">
+      <div class="who-copy">
+        <p>Jimmy Ehrenhave, who has spent fifteen years building
+        catalogue, pricing and ecommerce systems for aftermarket parts businesses, and
+        currently works with one of the leading aftermarket suppliers in Northern
+        Europe.</p>
+        <p>Automatik IT is deliberately small. You talk to the person who writes the
+        software, not to an account manager, and the work is not subcontracted.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="contact">
+    <h2>Contact</h2>
+    <div class="showcase">
+      <svg class="section-mark" aria-hidden="true"><use href="#i-marker"/></svg>
+      <div class="showcase-copy">
+        <p class="org">Automatik IT Scandinavia AB</p>
+        <p><a href="mailto:info@automatikit.com">info@automatikit.com</a></p>
+        <p><a href="tel:+46735000023">+46 735 00 00 23</a></p>
+        <p>Sky City, Arlanda Airport, Box 150 98, SE-190 45 Stockholm-Arlanda, Sweden</p>
+        <p class="fineprint">Visitors welcome, as above. Say roughly when you are landing
+        and we will meet you.</p>
+      </div>
+    </div>
+  </section>
+
+<dialog class="lightbox" id="quote-full" aria-label="Sample quotation, full size">
+  <button class="lightbox-close" type="button" aria-label="Close">&times;</button>
+  <img data-src="../img/sample-quote-2000.jpg" width="2023" height="1751" alt="Quotation PDF answering the four requested lines: AN3-4A, NAS1149F0432P, MS27640-3 and the 3214000-3 check valve, each showing part number, description, certificate, quantity, availability, unit price and total, followed by a subtotal, a total of 2,485.40 pounds and an accept button.">
+</dialog>
+
+</main>
+
+<script>
+(function(){
+  var dlg  = document.getElementById('quote-full');
+  var open = document.querySelector('.quote-open');
+  if (!dlg || !open || typeof dlg.showModal !== 'function') return;  // link still works
+  var img = dlg.querySelector('img');
+  open.addEventListener('click', function(e){
+    e.preventDefault();
+    if (!img.getAttribute('src')) img.src = img.dataset.src;   // fetched on first open only
+    dlg.showModal();
+  });
+  dlg.addEventListener('click', function(e){ if (e.target === dlg) dlg.close(); });
+  dlg.querySelector('.lightbox-close').addEventListener('click', function(){ dlg.close(); });
+})();
+</script>
+
+<footer>
+  <div class="wrap">
+    <p>Automatik IT Scandinavia AB</p>
+    <p>Org.nr 556805-7540 &nbsp;·&nbsp; VAT SE556805754001 &nbsp;·&nbsp; Registered office: Stockholm-Arlanda, Sweden</p>
+    <p>&copy; 2026 Automatik IT Scandinavia AB</p>
+  </div>
+</footer>
+
+</body>
+</html>
